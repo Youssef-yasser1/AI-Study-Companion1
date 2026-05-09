@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="AI Study Companion - Upload PDFs, get summaries, ask questions, and take quizzes powered by Transformer models.">
+    <title>AI Study Companion</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg: #0f1117; --surface: #1a1d27; --surface2: #232734;
+            --border: #2d3348; --text: #e4e6f0; --text2: #9ca3bf;
+            --primary: #6c5ce7; --primary-glow: rgba(108,92,231,0.3);
+            --accent: #00cec9; --accent-glow: rgba(0,206,201,0.2);
+            --success: #00b894; --warning: #fdcb6e; --danger: #e17055;
+            --radius: 12px; --shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+        .app-container { max-width:1100px; margin:0 auto; padding:20px; }
+
+        /* Header */
+        .header { text-align:center; padding:40px 0 30px; }
+        .header h1 { font-size:2.4rem; font-weight:800; background:linear-gradient(135deg,var(--primary),var(--accent)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin-bottom:8px; }
+        .header p { color:var(--text2); font-size:1rem; }
+
+        /* Cards */
+        .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:24px; margin-bottom:20px; transition:border-color .3s; }
+        .card:hover { border-color:var(--primary); }
+        .card-title { font-size:1.1rem; font-weight:600; margin-bottom:16px; display:flex; align-items:center; gap:10px; }
+
+        /* Tabs */
+        .tabs { display:flex; gap:4px; background:var(--surface); border-radius:var(--radius); padding:4px; margin-bottom:20px; border:1px solid var(--border); flex-wrap:wrap; }
+        .tab { flex:1; padding:12px 16px; border:none; background:transparent; color:var(--text2); cursor:pointer; border-radius:8px; font-family:inherit; font-weight:500; font-size:.9rem; transition:all .3s; min-width:120px; }
+        .tab:hover { color:var(--text); background:var(--surface2); }
+        .tab.active { background:var(--primary); color:#fff; box-shadow:0 4px 15px var(--primary-glow); }
+        .tab-content { display:none; } .tab-content.active { display:block; }
+
+        /* Upload */
+        .upload-zone { border:2px dashed var(--border); border-radius:var(--radius); padding:50px 20px; text-align:center; cursor:pointer; transition:all .3s; position:relative; }
+        .upload-zone:hover, .upload-zone.dragover { border-color:var(--primary); background:rgba(108,92,231,0.05); }
+        .upload-zone input { position:absolute; inset:0; opacity:0; cursor:pointer; }
+        .upload-icon { font-size:3rem; margin-bottom:12px; }
+        .upload-zone p { color:var(--text2); }
+        .file-info { margin-top:16px; padding:12px 16px; background:var(--surface2); border-radius:8px; display:flex; align-items:center; gap:12px; }
+        .file-info .name { font-weight:600; } .file-info .meta { color:var(--text2); font-size:.85rem; }
+
+        /* Buttons */
+        .btn { padding:10px 20px; border:none; border-radius:8px; font-family:inherit; font-weight:600; cursor:pointer; transition:all .3s; font-size:.9rem; }
+        .btn-primary { background:var(--primary); color:#fff; } .btn-primary:hover { box-shadow:0 4px 20px var(--primary-glow); transform:translateY(-1px); }
+        .btn-accent { background:var(--accent); color:var(--bg); } .btn-accent:hover { box-shadow:0 4px 20px var(--accent-glow); }
+        .btn-outline { background:transparent; border:1px solid var(--border); color:var(--text); } .btn-outline:hover { border-color:var(--primary); }
+        .btn:disabled { opacity:.5; cursor:not-allowed; transform:none!important; }
+        .btn-group { display:flex; gap:10px; flex-wrap:wrap; margin-top:16px; }
+
+        /* Inputs */
+        .input-group { display:flex; gap:10px; margin-top:16px; }
+        .input-group input { flex:1; padding:12px 16px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:inherit; font-size:.95rem; outline:none; }
+        .input-group input:focus { border-color:var(--primary); }
+        select { padding:10px 14px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:inherit; outline:none; }
+
+        /* Results */
+        .result-box { margin-top:16px; padding:20px; background:var(--surface2); border-radius:8px; border-left:3px solid var(--primary); line-height:1.7; white-space:pre-wrap; word-wrap:break-word; }
+        .result-box.success { border-left-color:var(--success); }
+        .result-box.warning { border-left-color:var(--warning); }
+
+        /* Quiz */
+        .quiz-question { background:var(--surface2); border-radius:var(--radius); padding:20px; margin-bottom:16px; border:1px solid var(--border); }
+        .quiz-question h3 { font-size:1rem; margin-bottom:12px; }
+        .quiz-question .difficulty { font-size:.75rem; padding:2px 8px; border-radius:4px; font-weight:600; margin-left:8px; }
+        .diff-easy { background:rgba(0,184,148,.2); color:var(--success); }
+        .diff-medium { background:rgba(253,203,110,.2); color:var(--warning); }
+        .diff-hard { background:rgba(225,112,85,.2); color:var(--danger); }
+        .option { display:flex; align-items:center; gap:10px; padding:10px 14px; margin:6px 0; border-radius:8px; cursor:pointer; border:1px solid var(--border); transition:all .2s; }
+        .option:hover { border-color:var(--primary); background:rgba(108,92,231,0.05); }
+        .option.selected { border-color:var(--primary); background:rgba(108,92,231,0.1); }
+        .option.correct { border-color:var(--success); background:rgba(0,184,148,0.1); }
+        .option.wrong { border-color:var(--danger); background:rgba(225,112,85,0.1); }
+        .option input[type=radio] { accent-color:var(--primary); }
+
+        /* Score */
+        .score-display { text-align:center; padding:30px; }
+        .score-circle { width:120px; height:120px; border-radius:50%; border:4px solid var(--primary); display:flex; flex-direction:column; align-items:center; justify-content:center; margin:0 auto 16px; }
+        .score-circle .pct { font-size:2rem; font-weight:800; } .score-circle .grade { font-size:1rem; color:var(--text2); }
+
+        /* Keywords & Definitions */
+        .keyword-list { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+        .keyword-tag { padding:6px 14px; border-radius:20px; font-size:.85rem; font-weight:500; }
+        .keyword-tag.high { background:rgba(225,112,85,0.15); color:var(--danger); border:1px solid rgba(225,112,85,0.3); }
+        .keyword-tag.medium { background:rgba(253,203,110,0.15); color:var(--warning); border:1px solid rgba(253,203,110,0.3); }
+        .keyword-tag.low { background:rgba(0,184,148,0.15); color:var(--success); border:1px solid rgba(0,184,148,0.3); }
+        .section-label { font-size:.85rem; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:1px; margin:20px 0 10px; padding-bottom:6px; border-bottom:1px solid var(--border); }
+        .def-card { padding:12px 16px; background:var(--surface2); border-radius:8px; margin-bottom:8px; border-left:3px solid var(--accent); line-height:1.6; font-size:.9rem; }
+        .def-card .term { font-weight:700; color:var(--accent); }
+        .key-sent { padding:10px 14px; background:var(--surface2); border-radius:8px; margin-bottom:6px; border-left:3px solid var(--warning); line-height:1.5; font-size:.9rem; }
+
+        /* QA History */
+        .qa-item { padding:14px; background:var(--surface2); border-radius:8px; margin-top:10px; }
+        .qa-item .q { font-weight:600; margin-bottom:6px; } .qa-item .a { color:var(--accent); } .qa-item .conf { font-size:.8rem; color:var(--text2); }
+
+        /* Loading */
+        .loading { display:none; align-items:center; gap:10px; margin-top:12px; color:var(--text2); }
+        .loading.show { display:flex; }
+        .spinner { width:20px; height:20px; border:2px solid var(--border); border-top-color:var(--primary); border-radius:50%; animation:spin .8s linear infinite; }
+        @keyframes spin { to { transform:rotate(360deg); } }
+
+        /* Status */
+        .status-bar { padding:10px 16px; border-radius:8px; margin-top:12px; font-size:.9rem; display:none; }
+        .status-bar.show { display:block; }
+        .status-bar.error { background:rgba(225,112,85,0.1); color:var(--danger); border:1px solid rgba(225,112,85,0.3); }
+        .status-bar.success-status { background:rgba(0,184,148,0.1); color:var(--success); border:1px solid rgba(0,184,148,0.3); }
+
+        /* Flashcards */
+        .flashcard-container { perspective:1000px; margin:16px 0; }
+        .flashcard { width:100%; min-height:180px; position:relative; cursor:pointer; transition:transform .6s; transform-style:preserve-3d; }
+        .flashcard.flipped { transform:rotateY(180deg); }
+        .flashcard-face { position:absolute; inset:0; backface-visibility:hidden; border-radius:var(--radius); padding:30px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; border:1px solid var(--border); }
+        .flashcard-front { background:linear-gradient(135deg, var(--surface), var(--surface2)); }
+        .flashcard-back { background:linear-gradient(135deg, var(--surface2), var(--surface)); transform:rotateY(180deg); }
+        .flashcard-term { font-size:1.3rem; font-weight:700; color:var(--accent); }
+        .flashcard-def { font-size:1rem; line-height:1.6; color:var(--text); }
+        .flashcard-nav { display:flex; gap:10px; justify-content:center; margin-top:16px; align-items:center; }
+        .flashcard-counter { color:var(--text2); font-size:.9rem; }
+        .mastery-bar { height:6px; border-radius:3px; background:var(--surface2); margin-top:8px; overflow:hidden; }
+        .mastery-fill { height:100%; border-radius:3px; transition:width .3s; }
+
+        /* Dashboard */
+        .stats-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:12px; margin:16px 0; }
+        .stat-card { background:var(--surface2); border-radius:var(--radius); padding:20px; text-align:center; border:1px solid var(--border); }
+        .stat-value { font-size:2rem; font-weight:800; color:var(--accent); }
+        .stat-label { font-size:.8rem; color:var(--text2); margin-top:4px; }
+        .chart-bar-container { display:flex; align-items:flex-end; gap:6px; height:120px; margin:16px 0; padding:10px; background:var(--surface2); border-radius:var(--radius); }
+        .chart-bar { flex:1; min-width:20px; border-radius:4px 4px 0 0; transition:height .3s; position:relative; }
+        .chart-bar:hover::after { content:attr(data-label); position:absolute; top:-24px; left:50%; transform:translateX(-50%); font-size:.7rem; color:var(--text); background:var(--surface); padding:2px 6px; border-radius:4px; white-space:nowrap; }
+
+        @media(max-width:600px){ .header h1{font-size:1.6rem;} .tabs{flex-direction:column;} .input-group{flex-direction:column;} .stats-grid{grid-template-columns:1fr 1fr;} }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <header class="header">
+        <h1>📚 AI Study Companion</h1>
+        <p>Upload a PDF • Get Summaries • Ask Questions • Take Quizzes</p>
+    </header>
+
+    <!-- Upload Section -->
+    <div class="card" id="upload-card">
+        <div class="card-title">📄 Upload Your Study Material</div>
+        <div class="upload-zone" id="upload-zone">
+            <input type="file" id="pdf-input" accept=".pdf,.png,.jpg,.jpeg,.bmp,.tiff,.tif,.webp" multiple>
+            <div class="upload-icon">📤</div>
+            <p><strong>Click or drag</strong> files here (single or multiple)</p>
+            <p style="font-size:.8rem;margin-top:4px;">PDF, PNG, JPG, BMP, TIFF • Max 50MB • Multiple files supported</p>
+        </div>
+        <div id="file-info" style="display:none;" class="file-info">
+            <span>📄</span>
+            <div><div class="name" id="file-name"></div><div class="meta" id="file-meta"></div></div>
+        </div>
+        <div class="loading" id="upload-loading"><div class="spinner"></div><span>Extracting text from PDF...</span></div>
+        <div class="status-bar" id="upload-status"></div>
+    </div>
+
+    <!-- Feature Tabs (hidden until PDF uploaded) -->
+    <div id="features-section" style="display:none;">
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('summary')">📋 Summary</button>
+            <button class="tab" onclick="switchTab('qa')">❓ Q&A</button>
+            <button class="tab" onclick="switchTab('quiz')">📝 Quiz</button>
+            <button class="tab" onclick="switchTab('keywords')">🔑 Keywords</button>
+            <button class="tab" onclick="switchTab('flashcards')">🔄 Flashcards</button>
+            <button class="tab" onclick="switchTab('dashboard')">📊 Dashboard</button>
+        </div>
+
+        <!-- Summary Tab -->
+        <div class="tab-content active" id="tab-summary">
+            <div class="card">
+                <div class="card-title">📋 Document Summary</div>
+                <p style="color:var(--text2);font-size:.9rem;">Generate a comprehensive summary using Llama-3 AI model.</p>
+                <div class="btn-group"><button class="btn btn-primary" onclick="generateSummary()" id="btn-summarize">Generate Summary</button></div>
+                <div class="loading" id="summary-loading"><div class="spinner"></div><span>Generating summary (this may take a moment)...</span></div>
+                <div id="summary-result"></div>
+            </div>
+        </div>
+
+        <!-- Q&A Tab -->
+        <div class="tab-content" id="tab-qa">
+            <div class="card">
+                <div class="card-title">❓ Ask Questions</div>
+                <p style="color:var(--text2);font-size:.9rem;">Ask any question — answered by Llama-3 AI directly from your document.</p>
+                <div class="input-group">
+                    <input type="text" id="question-input" placeholder="Type your question here..." onkeydown="if(event.key==='Enter')askQuestion()">
+                    <button class="btn btn-accent" onclick="askQuestion()">Ask</button>
+                </div>
+                <div class="loading" id="qa-loading"><div class="spinner"></div><span>Searching for answer...</span></div>
+                <div id="qa-results"></div>
+            </div>
+        </div>
+
+        <!-- Quiz Tab -->
+        <div class="tab-content" id="tab-quiz">
+            <div class="card">
+                <div class="card-title">📝 MCQ Quiz</div>
+                <p style="color:var(--text2);font-size:.9rem;">AI-generated quiz questions powered by Llama-3. Choose difficulty and number of questions.</p>
+                <div class="btn-group" id="quiz-controls">
+                    <select id="quiz-difficulty"><option value="easy">Easy</option><option value="medium" selected>Medium</option><option value="hard">Hard</option></select>
+                    <input type="number" id="quiz-count" value="5" min="1" max="20" style="width:80px;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text1);" placeholder="5">
+                    <span style="color:var(--text2);font-size:.85rem;align-self:center;">questions</span>
+                    <button class="btn btn-primary" onclick="generateQuiz()">Generate Quiz</button>
+                </div>
+                <div class="loading" id="quiz-loading"><div class="spinner"></div><span>Generating quiz questions with AI...</span></div>
+                <div id="quiz-area"></div>
+            </div>
+        </div>
+
+        <!-- Keywords Tab -->
+        <div class="tab-content" id="tab-keywords">
+            <div class="card">
+                <div class="card-title">🔑 Key Concepts & Definitions</div>
+                <p style="color:var(--text2);font-size:.9rem;">Extract important definitions, key sentences, and terms from your document.</p>
+                <div class="btn-group"><button class="btn btn-primary" onclick="extractKeywords()">Extract Key Concepts</button></div>
+                <div class="loading" id="kw-loading"><div class="spinner"></div><span>Analyzing document...</span></div>
+                <div id="keywords-result"></div>
+            </div>
+        </div>
+
+        <!-- Flashcards Tab -->
+        <div class="tab-content" id="tab-flashcards">
+            <div class="card">
+                <div class="card-title">🔄 Study Flashcards</div>
+                <p style="color:var(--text2);font-size:.9rem;">AI-generated flashcards with spaced repetition. Click a card to flip it.</p>
+                <div class="btn-group">
+                    <input type="number" id="fc-count" value="10" min="1" max="20" style="width:80px;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);">
+                    <span style="color:var(--text2);font-size:.85rem;align-self:center;">cards</span>
+                    <button class="btn btn-primary" onclick="generateFlashcards()">Generate Flashcards</button>
+                    <button class="btn btn-outline" onclick="reviewDueCards()">📅 Review Due</button>
+                </div>
+                <div class="loading" id="fc-loading"><div class="spinner"></div><span>Creating flashcards...</span></div>
+                <div id="flashcard-area"></div>
+            </div>
+        </div>
+
+        <!-- Dashboard Tab -->
+        <div class="tab-content" id="tab-dashboard">
+            <div class="card">
+                <div class="card-title">📊 Study Dashboard</div>
+                <p style="color:var(--text2);font-size:.9rem;">Track your study progress, quiz scores, and flashcard mastery.</p>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="loadDashboard()">Refresh Dashboard</button>
+                    <button class="btn btn-accent" onclick="exportPDF()">📱 Export Study Guide PDF</button>
+                </div>
+                <div class="loading" id="dash-loading"><div class="spinner"></div><span>Loading stats...</span></div>
+                <div id="dashboard-area"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let sessionId = null;
+let currentQuiz = null;
+let flashcards = [];
+let currentCardIndex = 0;
+
+// Tab switching
+function switchTab(name) {
+    document.querySelectorAll('.tab').forEach((t,i) => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.getElementById('tab-'+name).classList.add('active');
+    const tabs = document.querySelectorAll('.tab');
+    const map = {summary:0, qa:1, quiz:2, keywords:3, flashcards:4, dashboard:5};
+    if(map[name]!==undefined) tabs[map[name]].classList.add('active');
+}
+
+// Upload handling
+const uploadZone = document.getElementById('upload-zone');
+const pdfInput = document.getElementById('pdf-input');
+
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+uploadZone.addEventListener('drop', e => { e.preventDefault(); uploadZone.classList.remove('dragover'); if(e.dataTransfer.files.length) { pdfInput.files = e.dataTransfer.files; handleFileSelection(e.dataTransfer.files); }});
+pdfInput.addEventListener('change', e => { if(e.target.files.length) handleFileSelection(e.target.files); });
+
+async function handleFileSelection(files) {
+    if (files.length > 1) {
+        await uploadMultipleFiles(files);
+    } else {
+        handleUpload(files[0]);
+    }
+}
+
+async function handleUpload(file) {
+    const allowed = ['pdf','png','jpg','jpeg','bmp','tiff','tif','webp'];
+    const ext = file.name.split('.').pop().toLowerCase();
+    if(!allowed.includes(ext)) { showStatus('upload-status','Unsupported format. Use PDF or image files.','error'); return; }
+    
+    showLoading('upload-loading', true);
+    hideStatus('upload-status');
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    try {
+        const res = await fetch('/api/upload', { method:'POST', body:formData });
+        const data = await res.json();
+        
+        if(data.status === 'success') {
+            sessionId = data.session_id;
+            document.getElementById('file-name').textContent = data.filename || file.name;
+            document.getElementById('file-meta').textContent = `${data.word_count} words extracted`;
+            document.getElementById('file-info').style.display = 'flex';
+            document.getElementById('features-section').style.display = 'block';
+            showStatus('upload-status', '✅ PDF loaded successfully! Choose a feature below.', 'success-status');
+        } else {
+            showStatus('upload-status', '❌ ' + data.error, 'error');
+        }
+    } catch(err) {
+        showStatus('upload-status', '❌ Connection error: ' + err.message, 'error');
+    }
+    showLoading('upload-loading', false);
+}
+
+async function uploadMultipleFiles(files) {
+    showLoading('upload-loading', true);
+    hideStatus('upload-status');
+    const formData = new FormData();
+    if (sessionId) formData.append('session_id', sessionId);
+    for (const f of files) formData.append('files', f);
+    
+    try {
+        const res = await fetch('/api/upload/multi', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (data.status === 'success') {
+            sessionId = data.session_id;
+            document.getElementById('file-info').style.display = 'flex';
+            document.getElementById('file-name').textContent = data.files_loaded.join(', ');
+            document.getElementById('file-meta').textContent = `${data.count} files • ${data.word_count} words extracted`;
+            showStatus('upload-status', `✅ ${data.message}`, 'success-status');
+            document.getElementById('features-section').style.display = 'block';
+        } else {
+            showStatus('upload-status', '❌ ' + data.error, 'error');
+        }
+    } catch (err) {
+        showStatus('upload-status', '❌ ' + err.message, 'error');
+    }
+    showLoading('upload-loading', false);
+}
+
+// Summary
+async function generateSummary() {
+    if(!sessionId) return;
+    showLoading('summary-loading', true);
+    document.getElementById('btn-summarize').disabled = true;
+    try {
+        const res = await fetch('/api/summarize', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({session_id:sessionId}) });
+        const data = await res.json();
+        if(data.status==='success') {
+            // Format the summary: convert **bold**, headers, bullets, line breaks
+            let formatted = escapeHtml(data.summary);
+            // Convert **text** to bold
+            formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            // Convert ### headers
+            formatted = formatted.replace(/^### (.+)$/gm, '<h4 style="color:var(--accent);margin:12px 0 6px;">$1</h4>');
+            formatted = formatted.replace(/^## (.+)$/gm, '<h3 style="color:var(--accent);margin:14px 0 8px;">$1</h3>');
+            // Convert --- separators
+            formatted = formatted.replace(/^---$/gm, '<hr style="border-color:var(--border);margin:16px 0;">');
+            // Convert bullet points
+            formatted = formatted.replace(/^[•\-\*] (.+)$/gm, '<li style="margin:4px 0;margin-left:20px;">$1</li>');
+            // Convert numbered lists
+            formatted = formatted.replace(/^\d+\. (.+)$/gm, '<li style="margin:4px 0;margin-left:20px;">$1</li>');
+            // Convert double newlines to paragraphs
+            formatted = formatted.replace(/\n\n/g, '</p><p style="margin:8px 0;">');
+            // Convert single newlines to line breaks
+            formatted = formatted.replace(/\n/g, '<br>');
+            document.getElementById('summary-result').innerHTML = `<div class="result-box success" style="max-height:600px;overflow-y:auto;"><p style="margin:8px 0;">${formatted}</p></div>`;
+        } else {
+            document.getElementById('summary-result').innerHTML = `<div class="result-box warning">❌ ${escapeHtml(data.error)}</div>`;
+        }
+    } catch(err) { document.getElementById('summary-result').innerHTML = `<div class="result-box warning">Error: ${err.message}</div>`; }
+    showLoading('summary-loading', false);
+    document.getElementById('btn-summarize').disabled = false;
+}
+
+// Q&A
+async function askQuestion() {
+    const q = document.getElementById('question-input').value.trim();
+    if(!q || !sessionId) return;
+    showLoading('qa-loading', true);
+    try {
+        const res = await fetch('/api/ask', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({session_id:sessionId, question:q}) });
+        const data = await res.json();
+        const container = document.getElementById('qa-results');
+        if(data.status==='success') {
+            const pct = Math.round(data.confidence*100);
+            // Format the answer text with line breaks and bold
+            let ansFormatted = escapeHtml(data.answer);
+            ansFormatted = ansFormatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            ansFormatted = ansFormatted.replace(/\n/g, '<br>');
+            const confColor = pct >= 80 ? 'var(--success)' : pct >= 50 ? 'var(--accent)' : 'var(--danger)';
+            container.insertAdjacentHTML('afterbegin', `<div class="qa-item"><div class="q" style="font-weight:600;margin-bottom:6px;">Q: ${escapeHtml(data.question)}</div><div class="a" style="line-height:1.6;">${ansFormatted}</div><div class="conf" style="color:${confColor};margin-top:4px;font-size:.85rem;">Confidence: ${pct}%</div></div>`);
+        } else {
+            container.insertAdjacentHTML('afterbegin', `<div class="qa-item" style="border-left:3px solid var(--danger);padding-left:12px;">Error: ${escapeHtml(data.error)}</div>`);
+        }
+    } catch(err) { document.getElementById('qa-results').innerHTML = `<div class="result-box warning">${err.message}</div>`; }
+    showLoading('qa-loading', false);
+    document.getElementById('question-input').value = '';
+}
+
+// Quiz
+async function generateQuiz() {
+    if(!sessionId) return;
+    const difficulty = document.getElementById('quiz-difficulty').value;
+    const count = parseInt(document.getElementById('quiz-count').value);
+    showLoading('quiz-loading', true);
+    try {
+        const res = await fetch('/api/quiz/generate', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({session_id:sessionId, num_questions:count, difficulty}) });
+        const data = await res.json();
+        if(data.status==='success') { currentQuiz = data.questions; renderQuiz(data.questions); }
+        else { document.getElementById('quiz-area').innerHTML = `<div class="result-box warning">${escapeHtml(data.error)}</div>`; }
+    } catch(err) { document.getElementById('quiz-area').innerHTML = `<div class="result-box warning">${err.message}</div>`; }
+    showLoading('quiz-loading', false);
+}
+
+function renderQuiz(questions) {
+    let html = '';
+    questions.forEach(q => {
+        html += `<div class="quiz-question" id="qq-${q.id}"><h3>Q${q.id}. ${escapeHtml(q.question)} <span class="difficulty diff-${q.difficulty}">${q.difficulty.toUpperCase()}</span></h3>`;
+        for(const [letter, text] of Object.entries(q.options)) {
+            html += `<label class="option" id="opt-${q.id}-${letter}" onclick="selectOption(${q.id},'${letter}')"><input type="radio" name="q${q.id}" value="${letter}"> <strong>${letter})</strong> ${escapeHtml(text)}</label>`;
+        }
+        html += '</div>';
+    });
+    html += '<div class="btn-group"><button class="btn btn-accent" onclick="submitQuiz()">Submit Quiz</button></div>';
+    document.getElementById('quiz-area').innerHTML = html;
+}
+
+function selectOption(qid, letter) {
+    document.querySelectorAll(`[id^="opt-${qid}-"]`).forEach(o => o.classList.remove('selected'));
+    document.getElementById(`opt-${qid}-${letter}`).classList.add('selected');
+}
+
+async function submitQuiz() {
+    if(!currentQuiz || !sessionId) return;
+    const answers = {};
+    let allAnswered = true;
+    currentQuiz.forEach(q => {
+        const sel = document.querySelector(`input[name="q${q.id}"]:checked`);
+        if(sel) answers[q.id] = sel.value; else allAnswered = false;
+    });
+    if(!allAnswered) { alert('Please answer all questions before submitting.'); return; }
+
+    try {
+        const res = await fetch('/api/quiz/submit', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({session_id:sessionId, answers}) });
+        const data = await res.json();
+        if(data.status==='success') {
+            // Highlight correct/wrong
+            data.details.forEach(d => {
+                document.querySelectorAll(`[id^="opt-${d.question_id}-"]`).forEach(o => { o.style.pointerEvents='none'; });
+                const correctEl = document.getElementById(`opt-${d.question_id}-${d.correct_answer}`);
+                if(correctEl) correctEl.classList.add('correct');
+                if(!d.is_correct) {
+                    const wrongEl = document.getElementById(`opt-${d.question_id}-${d.user_answer}`);
+                    if(wrongEl) wrongEl.classList.add('wrong');
+                }
+            });
+            // Show score
+            const scoreHtml = `<div class="score-display"><div class="score-circle"><div class="pct">${data.percentage}%</div><div class="grade">${data.grade}</div></div><p style="font-size:1.1rem;font-weight:600;">${data.score} / ${data.total} correct</p><div class="btn-group" style="justify-content:center;margin-top:16px;"><button class="btn btn-primary" onclick="generateQuiz()">New Quiz</button></div></div>`;
+            document.getElementById('quiz-area').insertAdjacentHTML('beforeend', scoreHtml);
+        }
+    } catch(err) { alert('Error submitting quiz: '+err.message); }
+}
+
+// Keywords & Definitions
+async function extractKeywords() {
+    if(!sessionId) return;
+    showLoading('kw-loading', true);
+    try {
+        const res = await fetch('/api/keywords', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({session_id:sessionId, max_keywords:20}) });
+        const data = await res.json();
+        if(data.status==='success') {
+            let html = '';
+            const defs = data.keywords.filter(k => k.type === 'definition');
+            const sents = data.keywords.filter(k => k.type === 'key_point');
+            const kws = data.keywords.filter(k => k.type === 'keyword');
+            if(defs.length) {
+                html += '<div class="section-label">Definitions</div>';
+                defs.forEach(d => { html += `<div class="def-card">${d.term ? '<span class="term">'+escapeHtml(d.term)+':</span> ':''} ${escapeHtml(d.text)}</div>`; });
+            }
+            if(sents.length) {
+                html += '<div class="section-label">Key Points</div>';
+                sents.forEach(s => { html += `<div class="key-sent">${escapeHtml(s.text)}</div>`; });
+            }
+            if(kws.length) {
+                html += '<div class="section-label">Important Terms</div><div class="keyword-list">';
+                kws.forEach(k => { html += `<span class="keyword-tag ${k.importance||'low'}">${escapeHtml(k.keyword)}</span>`; });
+                html += '</div>';
+            }
+            if(!html) html = '<div class="result-box">No key concepts found.</div>';
+            document.getElementById('keywords-result').innerHTML = html;
+        } else { document.getElementById('keywords-result').innerHTML = `<div class="result-box warning">${escapeHtml(data.error)}</div>`; }
+    } catch(err) { document.getElementById('keywords-result').innerHTML = `<div class="result-box warning">${err.message}</div>`; }
+    showLoading('kw-loading', false);
+}
+
+// Utilities
+function showLoading(id, show) { const el=document.getElementById(id); if(el) el.classList.toggle('show', show); }
+function showStatus(id, msg, cls) { const el=document.getElementById(id); el.textContent=msg; el.className='status-bar show '+cls; }
+function hideStatus(id) { document.getElementById(id).className='status-bar'; }
+function escapeHtml(t) { const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
+
+
+
+// ===== FLASHCARDS =====
+async function generateFlashcards() {
+    if (!sessionId) return;
+    const count = parseInt(document.getElementById('fc-count').value) || 10;
+    showLoading('fc-loading', true);
+    try {
+        const res = await fetch('/api/flashcards/generate', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ session_id: sessionId, max_cards: count })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            flashcards = data.flashcards;
+            currentCardIndex = 0;
+            renderFlashcard();
+        } else {
+            document.getElementById('flashcard-area').innerHTML = `<div class="result-box warning">❌ ${escapeHtml(data.error)}</div>`;
+        }
+    } catch (err) {
+        document.getElementById('flashcard-area').innerHTML = `<div class="result-box warning">${err.message}</div>`;
+    }
+    showLoading('fc-loading', false);
+}
+
+function renderFlashcard() {
+    if (!flashcards.length) {
+        document.getElementById('flashcard-area').innerHTML = '<div class="result-box">No flashcards generated yet.</div>';
+        return;
+    }
+    const fc = flashcards[currentCardIndex];
+    const html = `
+        <div class="flashcard-container">
+            <div class="flashcard" id="current-flashcard" onclick="this.classList.toggle('flipped')">
+                <div class="flashcard-face flashcard-front">
+                    <div style="font-size:.8rem;color:var(--text2);margin-bottom:12px;">TERM (click to flip)</div>
+                    <div class="flashcard-term">${escapeHtml(fc.term)}</div>
+                </div>
+                <div class="flashcard-face flashcard-back">
+                    <div style="font-size:.8rem;color:var(--text2);margin-bottom:12px;">DEFINITION</div>
+                    <div class="flashcard-def">${escapeHtml(fc.definition)}</div>
+                </div>
+            </div>
+        </div>
+        <div class="flashcard-nav">
+            <button class="btn btn-outline" onclick="prevCard()" ${currentCardIndex===0?'disabled':''}>◀ Previous</button>
+            <span class="flashcard-counter">${currentCardIndex+1} / ${flashcards.length}</span>
+            <button class="btn btn-outline" onclick="nextCard()" ${currentCardIndex===flashcards.length-1?'disabled':''}>Next ▶</button>
+        </div>
+        <div class="flashcard-nav" style="margin-top:8px;">
+            <button class="btn" style="background:var(--danger);color:#fff;" onclick="markCard(false)">❌ Don't Know</button>
+            <button class="btn" style="background:var(--success);color:#fff;" onclick="markCard(true)">✅ Got It!</button>
+        </div>
+    `;
+    document.getElementById('flashcard-area').innerHTML = html;
+}
+
+function prevCard() { if (currentCardIndex > 0) { currentCardIndex--; renderFlashcard(); } }
+function nextCard() { if (currentCardIndex < flashcards.length-1) { currentCardIndex++; renderFlashcard(); } }
+
+function markCard(correct) {
+    const fc = flashcards[currentCardIndex];
+    if (fc.id) {
+        fetch('/api/flashcards/review', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ flashcard_id: fc.id, correct })
+        }).catch(() => {});
+    }
+    if (currentCardIndex < flashcards.length - 1) { nextCard(); }
+    else { document.getElementById('flashcard-area').innerHTML = `<div class="result-box success" style="text-align:center;"><h3>🎉 Review Complete!</h3><p style="margin-top:8px;">You reviewed all ${flashcards.length} flashcards.</p><div class="btn-group" style="justify-content:center;margin-top:16px;"><button class="btn btn-primary" onclick="generateFlashcards()">Generate New Cards</button></div></div>`; }
+}
+
+async function reviewDueCards() {
+    if (!sessionId) return;
+    showLoading('fc-loading', true);
+    try {
+        const res = await fetch('/api/flashcards/due', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ session_id: sessionId })
+        });
+        const data = await res.json();
+        if (data.status === 'success' && data.flashcards.length) {
+            flashcards = data.flashcards;
+            currentCardIndex = 0;
+            renderFlashcard();
+        } else {
+            document.getElementById('flashcard-area').innerHTML = '<div class="result-box success">🎉 No flashcards due for review! All caught up.</div>';
+        }
+    } catch (err) {
+        document.getElementById('flashcard-area').innerHTML = `<div class="result-box warning">${err.message}</div>`;
+    }
+    showLoading('fc-loading', false);
+}
+
+// ===== DASHBOARD =====
+async function loadDashboard() {
+    showLoading('dash-loading', true);
+    try {
+        const res = await fetch('/api/dashboard', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ session_id: sessionId || '' })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            renderDashboard(data);
+        } else {
+            document.getElementById('dashboard-area').innerHTML = `<div class="result-box warning">${escapeHtml(data.error)}</div>`;
+        }
+    } catch (err) {
+        document.getElementById('dashboard-area').innerHTML = `<div class="result-box warning">${err.message}</div>`;
+    }
+    showLoading('dash-loading', false);
+}
+
+function renderDashboard(data) {
+    let html = '<div class="stats-grid">';
+    html += `<div class="stat-card"><div class="stat-value">${data.total_sessions||0}</div><div class="stat-label">Sessions</div></div>`;
+    html += `<div class="stat-card"><div class="stat-value">${data.total_quizzes||0}</div><div class="stat-label">Quizzes Taken</div></div>`;
+    html += `<div class="stat-card"><div class="stat-value">${data.average_score||0}%</div><div class="stat-label">Average Score</div></div>`;
+    html += `<div class="stat-card"><div class="stat-value">${data.total_flashcards||0}</div><div class="stat-label">Flashcards</div></div>`;
+    html += `<div class="stat-card"><div class="stat-value">${data.total_questions_asked||0}</div><div class="stat-label">Questions Asked</div></div>`;
+    if (data.best_score !== undefined) html += `<div class="stat-card"><div class="stat-value" style="color:var(--success);">${data.best_score}%</div><div class="stat-label">Best Score</div></div>`;
+    html += '</div>';
+
+    // Score history chart
+    if (data.score_history && data.score_history.length) {
+        html += '<div class="section-label">Quiz Score History</div>';
+        html += '<div class="chart-bar-container">';
+        data.score_history.reverse().forEach(s => {
+            const h = Math.max(s.score * 1.1, 10);
+            const color = s.score >= 80 ? 'var(--success)' : s.score >= 50 ? 'var(--warning)' : 'var(--danger)';
+            html += `<div class="chart-bar" style="height:${h}%;background:${color};" data-label="${s.score}% ${s.grade}"></div>`;
+        });
+        html += '</div>';
+    }
+
+    // Flashcard mastery
+    if (data.total_flashcards > 0 && data.flashcard_mastery) {
+        html += '<div class="section-label">Flashcard Mastery</div>';
+        const levels = ['New', 'Learning', 'Familiar', 'Good', 'Strong', 'Mastered'];
+        const colors = ['var(--danger)', '#e17055', 'var(--warning)', '#81ecec', 'var(--accent)', 'var(--success)'];
+        html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">';
+        for (let i = 0; i <= 5; i++) {
+            const cnt = data.flashcard_mastery[String(i)] || 0;
+            if (cnt > 0) html += `<div class="stat-card" style="flex:1;min-width:80px;"><div class="stat-value" style="font-size:1.4rem;color:${colors[i]};">${cnt}</div><div class="stat-label">${levels[i]}</div></div>`;
+        }
+        html += '</div>';
+    }
+
+    if (!data.total_quizzes && !data.total_flashcards) {
+        html += '<div class="result-box" style="text-align:center;margin-top:16px;">📝 Take some quizzes or create flashcards to see your progress here!</div>';
+    }
+
+    document.getElementById('dashboard-area').innerHTML = html;
+}
+
+// ===== EXPORT PDF =====
+async function exportPDF() {
+    if (!sessionId) { alert('Upload a document first!'); return; }
+    try {
+        const res = await fetch('/api/export/pdf', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ session_id: sessionId })
+        });
+        if (res.ok) {
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'study_guide.pdf';
+            document.body.appendChild(a); a.click();
+            a.remove(); window.URL.revokeObjectURL(url);
+        } else {
+            const data = await res.json();
+            alert('Export failed: ' + (data.error || 'Unknown error'));
+        }
+    } catch (err) { alert('Export error: ' + err.message); }
+}
+</script>
+</body>
+</html>

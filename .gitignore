@@ -1,0 +1,37 @@
+# Byte-compiled / optimized
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Data (will be recreated)
+data/uploads/
+data/exports/
+data/*.db
+
+# Cloudflare (local only)
+cloudflared.exe
+
+# Temp scripts
+check_db.py
+check_db2.py
+
+# Env files
+key.env
+
+# Large files
+LINK.pdf
+Video.rar
+*.rar

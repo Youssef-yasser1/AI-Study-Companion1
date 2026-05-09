@@ -1,0 +1,36 @@
+# ============================================
+# AI Study Companion - Requirements (Render Cloud)
+# Lightweight version without torch (uses HF API only)
+# ============================================
+
+# --- HuggingFace Inference API ---
+huggingface-hub>=0.20.0
+
+# --- PDF Processing ---
+PyPDF2>=3.0.0
+pdfplumber>=0.10.0
+
+# --- Image OCR ---
+pytesseract>=0.3.10
+Pillow>=10.0.0
+
+# --- Web Framework ---
+flask>=3.0.0
+flask-cors>=4.0.0
+gunicorn>=21.2.0
+
+# --- NLP Utilities ---
+nltk>=3.8.0
+langdetect>=1.0.9
+
+# --- Evaluation Metrics ---
+rouge-score>=0.1.2
+scikit-learn>=1.3.0
+
+# --- Keyword Extraction ---
+rake-nltk>=1.0.6
+yake>=0.4.8
+
+# --- General ---
+numpy>=1.24.0
+fpdf2>=2.7.0
